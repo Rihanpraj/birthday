@@ -5,32 +5,39 @@ on:
     branches: ['main']
   workflow_dispatch:
 
+# Required so GITHUB_TOKEN can push the gh-pages branch (repo Settings → Actions → Workflow permissions → Read and write).
 permissions:
   contents: write
 
+concurrency:
+  group: github-pages-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  github-pages:
+  build-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: github-pages-publish
-      cancel-in-progress: true
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
 
-      - name: Install and build
-        run: npm ci && npm run build
+      - name: Install
+        run: npm ci
 
-      # Pushes ./dist into the orphan branch gh-pages — works without OIDC Pages setup.
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
-        if: github.ref == 'refs/heads/main'
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to gh-pages branch
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          folder: dist
+          branch: gh-pages
+          clean: true
+          single-commit: true
